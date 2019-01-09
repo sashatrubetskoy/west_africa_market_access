@@ -1,0 +1,17 @@
+code,motorway,trunk,primary,secondary,tertiary
+BEN,4,3,3,1,0
+BFA,4,3,2,2,0
+CMR,4,2,2,1,0
+GMB,4,3,3,2,0
+GHA,4,3,2,2,0
+GIN,4,3,2,1,1
+GNB,4,3,3,2,2
+CIV,4,3,2,1,0
+LBR,4,3,2,1,0
+MLI,4,3,3,2,0
+MRT,4,3,3,2,0
+NER,4,3,2,1,0
+NGA,4,3,2,1,0
+SEN,4,3,3,2,0
+SLE,4,3,2,2,1
+TGO,4,3,2,1,0
