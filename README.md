@@ -36,7 +36,7 @@ Trade cost reductions can take the form of:
 
 As discussed by Reed and Trubetskoy (2018), the model is particularly useful for ranking effects, for instance ranking transport corridor proposals by how much they would improve market access.
 
-# Quick workflow
+# Quick instructions
 Use these instructions if you are not changing any underlying data. This workflow was designed to be run on MacOS using Terminal and QGIS 3. All commands are run from within the top directory.
 
 1. Install necessary packages by running:
@@ -50,15 +50,17 @@ Use these instructions if you are not changing any underlying data. This workflo
 	./code/install_packages.sh
 	```
 
-2. Update parameters as necessary. (`parameters/*.csv`) 
+2. Download clean data [from here](https://drive.google.com/file/d/1oXpSUBRRdheKoaMUzubv90aFr5fZcOuK/view?usp=sharing), unzip, save as `data` in main directory.
 
-3. Make cost matrix by running:
+3. Update parameters as necessary. (`parameters/*.csv`) 
+
+4. Make cost matrix by running:
 
 	```
 	python code/get_cost_matrix.py -o data/csv/my_cost_matrix_filename.csv
 	```
 
-4. Get market access by running:
+5. Get market access by running:
 	
 	```
 	python code/get_ma.py \
@@ -201,6 +203,7 @@ Note that tariffs and border costs are not symmetrical.
 Default values are based on standard ad valorem costs to move one $50,000 container a distance of one kilometer, for sea and motorway travel. Lower quality roads are extrapolated using the basic assumption of doubling cost for every decrease in quality rating.
 
 **Other cost parameters** are stored in `parameters/other_cost_parameters.csv`. The default values are as follows:
+
 Parameter | Description | Default value
 --- | --- | ---
 Shipment value | The value of a single shipping container. Used to convert costs to *ad valorem*. | 50,000 USD
@@ -210,14 +213,17 @@ Port fee | Cost of switching to/from sea travel. | 200 USD
 
 ### Run cost matrix calculation
 When all the parameters have been set, run:
+
 ```
 python get_cost_matrix.py -o csv/cost_matrix.csv
 ```
+
 with the desired output location after `-o`.
 
 ## Calculating market access
 ### Set parameters
 These parameters are stored in `parameters/market_access_parameters.csv`
+
 Parameter | Description | Default value
 --- | --- | ---
 Theta | Trade elasticity between cities | 5.03
