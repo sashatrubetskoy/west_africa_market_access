@@ -71,7 +71,7 @@ Use these instructions if you are not changing any underlying data. This workflo
 # Spatial data checklist
 - [ ] border\_crossings.geojson
 
-    * "border_cost" - if zero, it defaults to WDI.
+    * "border_cost" - if -1, it defaults to WDI.
 
 - [ ] cities.geojson
 
