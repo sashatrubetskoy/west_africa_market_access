@@ -68,6 +68,29 @@ Use these instructions if you are not changing any underlying data. This workflo
 	    -o output/my_market_access_filename.csv
 	```
 	
+# Spatial data checklist
+- [ ] border\_crossings.geojson
+
+    * "border_cost" - if zero, it defaults to WDI.
+
+- [ ] cities.geojson
+
+    * "GDP" Size of city market. Lines 66-67 in get_ma.py
+
+- [ ] ports.geojson
+
+    * (no attributes are needed, only geometry is important)
+
+- [ ] roads.geojson
+
+    * "length" - length of line feature in meters
+    * "quality" - 1 to 4, make sure it matches parameters/transport_costs.csv
+
+- [ ] sea_links.geosjon
+
+    * "length" - length of line feature in meters
+    * "quality" - should be set to "sea" or otherwise match parameters/transport_costs.csv
+
 # Workflow details
 ## Preparation
 ### Installing necessary packages
@@ -98,9 +121,9 @@ To install the following necessary packages, run the associated command in Termi
     
     where:
     
-	   - `data/geojson/extraction_area.geojson` is a single polygon marking our area of interest (i.e. West Africa), with a buffer of approx. 100 km to ensure all features are captured; 
-	   - `data/pbf/africa-latest.osm.pbf` is the raw OSM file;
-	   - `data/pbf/west_africa.pbf` is the output location.
+   - `data/geojson/extraction_area.geojson` is a single polygon marking our area of interest (i.e. West Africa), with a buffer of approx. 100 km to ensure all features are captured; 
+   - `data/pbf/africa-latest.osm.pbf` is the raw OSM file;
+   - `data/pbf/west_africa.pbf` is the output location.
     
 - 2.b. Take the West Africa file and extract roads. To extract all roads of "secondary" class or higher, **run:**
     
