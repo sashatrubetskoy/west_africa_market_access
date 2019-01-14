@@ -126,12 +126,12 @@ def match_cities_with_nodes(road, rail, sea, G):
 #---------------------------------------------------
 
 
-# 3. Add cost attributes to road
+# 3. Add cost attributes to graph
 #---------------------------------------------------
 def add_costs_to_graph(G):
     logger.info('3. Adding costs to graph...')
     for u, v in G.edges:
-        if 'cost' not in G[u][v]: # costs are per km, length is in meters
+        if 'cost' not in G[u][v]: # careful: costs are per km, length is in meters
             G[u][v]['cost'] = TCOST[str(G[u][v]['quality'])] * G[u][v]['length']/1000
     logger.info('Costs added.')
     return G
