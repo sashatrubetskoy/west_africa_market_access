@@ -191,11 +191,11 @@ def create_sea_transfers(ports, G):
             G.add_edge(u, v,
                 length=0,
                 quality='transfer',
-                cost=PARAMS.loc['port_fee'])
+                cost=PARAMS['port_fee'])
             G.add_edge(v, u,
                 length=0,
                 quality='transfer',
-                cost=PARAMS.loc['port_fee'])
+                cost=PARAMS['port_fee'])
     logger.info('Sea transfers created.')
     return G
 #---------------------------------------------------
