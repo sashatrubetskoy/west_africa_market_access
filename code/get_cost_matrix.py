@@ -142,7 +142,8 @@ def add_costs_to_graph(G):
 #---------------------------------------------------
 def find_nearest_nodes_to_ports(road_nodes, rail_nodes, sea_nodes, any_nodes):
     logger.info('4. Matching ports with nodes...')
-    ports_geojson = eval(open(PORTS_FILE).read())
+    with open(PORTS_FILE, 'r') as p:
+        ports_geojson = json.load(p)
     ports_nodes = [tuple(f['geometry']['coordinates']) for f in ports_geojson['features']]
     ports = pd.DataFrame(ports_nodes, columns=['X', 'Y'])
 
