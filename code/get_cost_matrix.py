@@ -205,7 +205,7 @@ def create_sea_transfers(ports, G):
 #---------------------------------------------------
 def create_border_crossings(road_nodes, G):
     logger.info('6. Creating border crossings...')
-    with open(BCROSS_FILE2, 'r') as f:
+    with open(BCROSS_FILE, 'r') as f:
         border_crossings = json.load(f)
 
     for bc in border_crossings['features']:
