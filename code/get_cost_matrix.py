@@ -26,7 +26,7 @@ args = parser.parse_args()
 # 0. Make cost assumptions, set file names
 #---------------------------------------------------
 TCOST = pd.read_csv('parameters/transport_costs.csv').set_index('class').to_dict()['cost_per_km']
-BCOST = pd.read_csv('parameters/border_costs.csv')
+BCOST = pd.read_csv('parameters/border_costs.csv', index_col=0)
 TARIFF = pd.read_csv('parameters/tariffs.csv').set_index('countrycode')
 PARAMS = pd.read_csv('parameters/other_cost_parameters.csv').set_index('parameter').to_dict()['value']
 
