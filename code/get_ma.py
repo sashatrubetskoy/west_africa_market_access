@@ -94,9 +94,6 @@ def calc_market_access(city_i, cost_matrix, cities, externals):
 def add_ma_cols(row, matrix, cities, externals):
     current_city_id = str(row[UNIQUE_FIELD])
     FMA, CMA = calc_market_access(current_city_id, matrix, cities, externals)
-
-    row['ln FMA'] = np.log(FMA)
-    row['ln CMA'] = np.log(CMA)
     row['ln MA'] = (1-PARAMS['beta'])*np.log(FMA) + PARAMS['beta']*np.log(CMA) # Initial overall market access
     
     return row
