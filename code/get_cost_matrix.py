@@ -23,11 +23,17 @@ logger = logging.getLogger(__name__)
 tqdm.pandas() # Gives us nice progress bars
 parser = argparse.ArgumentParser() # Allows user to put no-borders in command line
 parser.add_argument('--outfile', '-o', help='Set output location', type=str, default='data/csv/cost_matrix.csv')
+parser.add_argument('--bcross_file', '-b', help='Give border crossing GeoJSON location', type=str, default='data/geojson/border_crossings.geojson')
+parser.add_argument('--time', '-t', help='Use time instead of freight cost', action='store_true')
 args = parser.parse_args()
 
 # 0. Make cost assumptions, set file names
 #---------------------------------------------------
 TCOST = pd.read_csv('parameters/transport_costs.csv').set_index('class').to_dict()['cost_per_km']
+if args.time:
+    TCOST = pd.read_csv('parameters/transport_speeds.csv').set_index('class')
+    TCOST['cost_per_km'] = 1 / TCOST['km_per_hour'] # Convert to hours per km
+    TCOST = TCOST.to_dict()['cost_per_km']
 BCOST = pd.read_csv('parameters/border_costs.csv', index_col=0)
 TARIFF = pd.read_csv('parameters/tariffs.csv').set_index('countrycode')
 PARAMS = pd.read_csv('parameters/other_cost_parameters.csv').set_index('parameter').to_dict()['value']
@@ -37,7 +43,7 @@ ROAD_FILE = 'data/geojson/roads.geojson'
 # RAIL_FILE = # Rail not implemented yet
 SEA_FILE = 'data/geojson/sea_links.geojson'
 PORTS_FILE = 'data/geojson/ports.geojson'
-BCROSS_FILE = 'data/geojson/border_crossings.geojson'
+BCROSS_FILE = args.bcross_file
 # EXTERNAL_TSV = None
 
 logger.info('Cost matrix will export to {}.'.format(args.outfile))
@@ -231,11 +237,11 @@ def create_sea_transfers(ports, G):
             G.add_edge(u, v,
                 length=0,
                 quality='port_fee',
-                cost=PARAMS['port_fee'])
+                cost=PARAMS['port_wait_time'] if args.time else PARAMS['port_fee'])
             G.add_edge(v, u,
                 length=0,
                 quality='port_fee',
-                cost=PARAMS['port_fee'])
+                cost=PARAMS['port_wait_time'] if args.time else PARAMS['port_fee'])
     logger.info('Sea transfers created.')
     return G
 #---------------------------------------------------
@@ -267,10 +273,13 @@ def create_border_crossings(road_nodes, G):
 
         # If cost is manually specified in the GeoJSON,
         # use that cost. Otherwise default to BCOST csv.
-        cost_a = bc['properties']['border_cost'] if bc['properties']['border_cost'] != -1 else BCOST.loc[country_a][country_b]
-        cost_b = bc['properties']['border_cost'] if bc['properties']['border_cost'] != -1 else BCOST.loc[country_b][country_a]
-        # cost_a = 0
-        # cost_b = 0
+        if args.time:
+            cost_a = bc['properties']['border_cost'] if bc['properties']['border_cost'] != -1 else PARAMS['default_border_wait_time']
+            cost_b = bc['properties']['border_cost'] if bc['properties']['border_cost'] != -1 else PARAMS['default_border_wait_time']
+        else:
+            cost_a = bc['properties']['border_cost'] if bc['properties']['border_cost'] != -1 else BCOST.loc[country_a][country_b]
+            cost_b = bc['properties']['border_cost'] if bc['properties']['border_cost'] != -1 else BCOST.loc[country_b][country_a]
+            
         if min([cost_a, cost_b]) < 0:
             logger.warning('Border cost is less than zero!')
 
@@ -318,11 +327,14 @@ def get_cost_matrix(cities, G):
 
             city_b_node = nearest_node[city_b]
             
-            # (Raw transport cost + border costs) / shipment value [ad valorem]
-            transport_cost = costs[city_b_node] / PARAMS['shipment_value']
-            # Tariffs at destination [ad valorem]
-            tariff = TARIFF.loc[country_of[city_b_node]]['tariff']
-            # tariff = 0
+            if args.time:
+                transport_cost = costs[city_b_node]
+                tariff = 0 # No tariffs if using time
+            else:
+                # (Raw transport cost + border costs) / shipment value [ad valorem]
+                transport_cost = costs[city_b_node] / PARAMS['shipment_value']
+                # Tariffs at destination [ad valorem]
+                tariff = TARIFF.loc[country_of[city_b_node]]['tariff']
 
             if country_of[city_a_node] == country_of[city_b_node]:
                 final_cost = transport_cost
