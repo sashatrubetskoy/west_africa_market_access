@@ -23,8 +23,9 @@ logger = logging.getLogger(__name__)
 tqdm.pandas() # Gives us nice progress bars
 parser = argparse.ArgumentParser() # Allows user to put no-borders in command line
 parser.add_argument('--outfile', '-o', help='Set output location', type=str, default='data/csv/cost_matrix.csv')
-parser.add_argument('--bcross_file', '-b', help='Give border crossing GeoJSON location', type=str, default='data/geojson/border_crossings.geojson')
+parser.add_argument('--bcost_file', '-b', help='Give border cost file location', type=str, default='parameters/border_costs.csv')
 parser.add_argument('--time', '-t', help='Use time instead of freight cost', action='store_true')
+parser.add_argument('--force_rematch', '-f', help='Match cities with nodes again (may affect results)', action='store_true')
 args = parser.parse_args()
 
 # 0. Make cost assumptions, set file names
@@ -34,8 +35,8 @@ if args.time:
     TCOST = pd.read_csv('parameters/transport_speeds.csv').set_index('class')
     TCOST['cost_per_km'] = 1 / TCOST['km_per_hour'] # Convert to hours per km
     TCOST = TCOST.to_dict()['cost_per_km']
-BCOST = pd.read_csv('parameters/border_costs.csv', index_col=0)
-TARIFF = pd.read_csv('parameters/tariffs.csv').set_index('countrycode')
+BCOST = pd.read_csv(args.bcost_file).set_index('iso3')
+TARIFF = pd.read_csv('parameters/tariffs.csv').set_index('iso3')
 PARAMS = pd.read_csv('parameters/other_cost_parameters.csv').set_index('parameter').to_dict()['value']
 
 CITIES_CSV = 'data/csv/cities.csv'
@@ -43,10 +44,11 @@ ROAD_FILE = 'data/geojson/roads.geojson'
 # RAIL_FILE = # Rail not implemented yet
 SEA_FILE = 'data/geojson/sea_links.geojson'
 PORTS_FILE = 'data/geojson/ports.geojson'
-BCROSS_FILE = args.bcross_file
+# BCROSS_FILE = args.bcross_file
 # EXTERNAL_TSV = None
 
 logger.info('Cost matrix will export to {}.'.format(args.outfile))
+logger.info('Running {}...'.format('TIME model' if args.time else 'FREIGHT COST MODEL'))
 #---------------------------------------------------
 
 
@@ -144,21 +146,21 @@ def match_cities_with_nodes(road, rail, sea, G):
     sea_nodes = list(sea.nodes)
     any_nodes = list(G.nodes)
 
-    # if ('nearest_road' not in cities.columns) or (args.force_rematch):
     logger.info('2. Matching cities with nodes...')
-    def get_nearest_node(row):
-        point = list(row[['X', 'Y']]) # X, Y coordinates of city in projection
-        iso3 = row['iso3']
-        row['nearest_road'] = get_highest_quality_node_within_radius(point, iso3, road_nodes, road)
-        # row['nearest_rail'] = get_highest_quality_node_within_radius(point, rail_nodes, rail)
-        row['nearest_sea'] = tuple(sea_nodes[spatial.KDTree(np.array([(n[0], n[1]) for n in sea_nodes], dtype=np.float64)).query(point)[1]])
-        # row['nearest_any'] = sorted([row['nearest_road'], row['nearest_sea']],
-        #     key=lambda x: np.linalg.norm(np.array(point) - np.array(x[:2]))\
-        #     )[0]
-        row['nearest_any'] = row['nearest_road']
-        return row
-    cities = cities.progress_apply(get_nearest_node, axis=1)
-    cities.to_csv(CITIES_CSV, index=False)
+    if ('nearest_road' not in cities.columns) or (args.force_rematch):
+        def get_nearest_node(row):
+            point = list(row[['X', 'Y']]) # X, Y coordinates of city in projection
+            iso3 = row['iso3']
+            row['nearest_road'] = get_highest_quality_node_within_radius(point, iso3, road_nodes, road)
+            # row['nearest_rail'] = get_highest_quality_node_within_radius(point, rail_nodes, rail)
+            row['nearest_sea'] = tuple(sea_nodes[spatial.KDTree(np.array([(n[0], n[1]) for n in sea_nodes], dtype=np.float64)).query(point)[1]])
+            # row['nearest_any'] = sorted([row['nearest_road'], row['nearest_sea']],
+            #     key=lambda x: np.linalg.norm(np.array(point) - np.array(x[:2]))\
+            #     )[0]
+            row['nearest_any'] = row['nearest_road']
+            return row
+        cities = cities.progress_apply(get_nearest_node, axis=1)
+        cities.to_csv(CITIES_CSV, index=False)
     logger.info('\nCities matched.')
         
     return cities, road_nodes, rail_nodes, sea_nodes, any_nodes
@@ -251,46 +253,41 @@ def create_sea_transfers(ports, G):
 #---------------------------------------------------
 def create_border_crossings(road_nodes, G):
     logger.info('6. Creating border crossings...')
-    with open(BCROSS_FILE, 'r') as f:
-        border_crossings = json.load(f)
 
-    for bc in border_crossings['features']:
-        assert bc['geometry']['type'] == 'Point', 'Border crossings are {}. They must have type Point!'.format(bc['geometry']['type'])
+    def find_border_crossings(g):
+        # Find crossings by sorting the nodes, then checking for repeat coordinates.
+        # A crossing will have the same X, Y but different country
+        sorted_nodes = sorted(list(g.nodes()), key=lambda tup: tup[0])
+        crossings = []
+        for prev_node, cur_node in zip(sorted_nodes, sorted_nodes[1:]+[sorted_nodes[0]]):
+            if (cur_node[0], cur_node[1]) == (prev_node[0], prev_node[1]):
+                crossings.append([prev_node, cur_node])
+        return crossings
 
-        # Find which two nodes match the border crossing X,Y
-        coords = bc['geometry']['coordinates']
-        matches = [i for i, row in enumerate(np.array([(n[0], n[1]) for n in road_nodes], dtype=np.float64)) if all(np.round(row, 6) == np.round(coords, 6))]
-        if not matches:
-            logger.info('\tThere is no road node at {}!'.format(coords))
-            continue
-        if len(matches) == 1: # This is typically at the edge of a region
-            # logger.info('\tThere is only one road at {}!'.format(coords))
-            continue
-        a, b = [tuple(road_nodes[i]) for i in matches]
+    crossings = find_border_crossings(G)
 
-        # Find which countries the two nodes are in
-        country_a, country_b = [G[n][list(G[n])[0]]['iso3'] for n in [a, b]]
+    for node_a, node_b in crossings:
+        country_a = G[node_a][list(G[node_a])[0]]['iso3']
+        country_b = G[node_b][list(G[node_b])[0]]['iso3']
 
-        # If cost is manually specified in the GeoJSON,
-        # use that cost. Otherwise default to BCOST csv.
         if args.time:
-            cost_a = bc['properties']['border_cost'] if bc['properties']['border_cost'] != -1 else PARAMS['default_border_wait_time']
-            cost_b = bc['properties']['border_cost'] if bc['properties']['border_cost'] != -1 else PARAMS['default_border_wait_time']
+            cost_ab = BCOST.loc[country_a]['border_time_export'] # We do not add import costs because that would be double counting
+            cost_ba = BCOST.loc[country_b]['border_time_export']
         else:
-            cost_a = bc['properties']['border_cost'] if bc['properties']['border_cost'] != -1 else BCOST.loc[country_a][country_b]
-            cost_b = bc['properties']['border_cost'] if bc['properties']['border_cost'] != -1 else BCOST.loc[country_b][country_a]
+            cost_ab = BCOST.loc[country_a]['border_fee_export']
+            cost_ba = BCOST.loc[country_b]['border_fee_export']
             
-        if min([cost_a, cost_b]) < 0:
+        if min([cost_ab, cost_ba]) < 0:
             logger.warning('Border cost is less than zero!')
 
-        G.add_edge(a, b,
+        G.add_edge(node_a, node_b,
             length=0,
             quality='border_crossing',
-            cost=cost_a)
-        G.add_edge(b, a,
+            cost=cost_ab)
+        G.add_edge(node_b, node_a,
             length=0,
             quality='border_crossing',
-            cost=cost_b)
+            cost=cost_ba)
     logger.info('Border crossings created.')
     return G
 #---------------------------------------------------
