@@ -24,8 +24,10 @@ tqdm.pandas() # Gives us nice progress bars
 parser = argparse.ArgumentParser() # Allows user to put no-borders in command line
 parser.add_argument('--outfile', '-o', help='Set output location', type=str, default='data/csv/cost_matrix.csv')
 parser.add_argument('--bcost_file', '-b', help='Give border cost file location', type=str, default='parameters/border_costs.csv')
+parser.add_argument('--road_file', '-r', help='Give roads file location', type=str, default='data/geojson/roads.geojson')
 parser.add_argument('--time', '-t', help='Use time instead of freight cost', action='store_true')
 parser.add_argument('--force_rematch', '-f', help='Match cities with nodes again (may affect results)', action='store_true')
+parser.add_argument('--harris', '-harris', help='Calculate costs for Harris 1954-style market potential (theta=1)', action='store_true')
 args = parser.parse_args()
 
 # 0. Make cost assumptions, set file names
@@ -40,7 +42,7 @@ TARIFF = pd.read_csv('parameters/tariffs.csv').set_index('iso3')
 PARAMS = pd.read_csv('parameters/other_cost_parameters.csv').set_index('parameter').to_dict()['value']
 
 CITIES_CSV = 'data/csv/cities.csv'
-ROAD_FILE = 'data/geojson/roads.geojson'
+ROAD_FILE = args.road_file
 # RAIL_FILE = # Rail not implemented yet
 SEA_FILE = 'data/geojson/sea_links.geojson'
 PORTS_FILE = 'data/geojson/ports.geojson'
@@ -49,6 +51,9 @@ PORTS_FILE = 'data/geojson/ports.geojson'
 
 logger.info('Cost matrix will export to {}.'.format(args.outfile))
 logger.info('Running {}...'.format('TIME model' if args.time else 'FREIGHT COST MODEL'))
+if args.harris:
+    logger.info('Preparing costs for market potential (Harris 1954)...')
+    PARAMS['shipment_time_value'] = 1
 #---------------------------------------------------
 
 
@@ -325,13 +330,11 @@ def get_cost_matrix(cities, G):
             city_b_node = nearest_node[city_b]
             
             if args.time:
-                transport_cost = costs[city_b_node]
+                transport_cost = costs[city_b_node] / PARAMS['shipment_time_value']
                 tariff = 0 # No tariffs if using time
             else:
-                # (Raw transport cost + border costs) / shipment value [ad valorem]
-                transport_cost = costs[city_b_node] / PARAMS['shipment_value']
-                # Tariffs at destination [ad valorem]
-                tariff = TARIFF.loc[country_of[city_b_node]]['tariff']
+                transport_cost = costs[city_b_node] / PARAMS['shipment_usd_value'] # (Raw transport cost + border costs) / shipment value [ad valorem]
+                tariff = TARIFF.loc[country_of[city_b_node]]['tariff'] # Tariffs at destination [ad valorem]
 
             if country_of[city_a_node] == country_of[city_b_node]:
                 final_cost = transport_cost
@@ -349,6 +352,7 @@ def get_cost_matrix(cities, G):
 
     matrix = pd.DataFrame.from_dict(matrix_dict, orient='index')
     matrix.columns = all_cities
+
     return matrix
 #---------------------------------------------------
 

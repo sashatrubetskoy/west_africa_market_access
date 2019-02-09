@@ -19,11 +19,14 @@ tqdm.pandas() # Gives us nice progress bars
 parser = argparse.ArgumentParser() # Allows user to put no-borders in command line
 parser.add_argument('--infile', '-i', help='Set location of input cost matrix', type=str, default='data/csv/cost_matrix.csv')
 parser.add_argument('--outfile', '-o', help='Set output location', type=str, default='output/market_access.csv')
+parser.add_argument('--harris', '-harris', help='Calculate MA for Harris 1954-style market potential (theta=1)', action='store_true')
 args = parser.parse_args()
 
 # 0. Make assumptions, set file names
 #---------------------------------------------------
 PARAMS = pd.read_csv('parameters/market_access_parameters.csv').set_index('parameter').to_dict()['value']
+if args.harris:
+    PARAMS['theta'] = 1
 CITIES_CSV = 'data/csv/cities.csv'
 UNIQUE_FIELD = 'ORIG_FID'
 logger.info('File will export to {}.'.format(args.outfile))
@@ -84,9 +87,9 @@ def calc_market_access(city_i, cost_matrix, cities, externals):
                 continue
 
         logger.debug('        ', time.time())
-        FMA += (1/travel_cost_id)**PARAMS['theta'] * cities.iloc[i]['GDP'] # Firm Market Access
+        FMA += cities.iloc[i]['GDP'] * (travel_cost_id + 1)**(-PARAMS['theta']) # Firm Market Access
         logger.debug('FMA done', time.time())
-        CMA += (1/travel_cost_oi)**PARAMS['theta'] * cities.iloc[i]['GDP'] # Consumer Market Access
+        CMA += cities.iloc[i]['GDP'] * (travel_cost_oi + 1)**(-PARAMS['theta']) # Consumer Market Access
         logger.debug('CMA done', time.time())
 
     return max([FMA, 1e-99]), max([CMA, 1e-99]) # in case MA = 0, prevent division errors later
