@@ -236,19 +236,23 @@ def find_nearest_nodes_to_ports(road, rail, sea, G):
 #---------------------------------------------------
 def create_sea_transfers(ports, G):
     logger.info('5. Creating sea transfers...')
+    port_cost = PARAMS['port_wait_time'] if args.time else PARAMS['port_fee']
     for i in range(len(ports)):
         x, y, u, v = list(ports.iloc[i][['X', 'Y', 'nearest_road', 'nearest_sea']])
         port_is_near_road = np.sqrt((x-u[0])**2 + (y-u[1])**2) < 0.05
         port_is_near_sea_link = np.sqrt((x-v[0])**2 + (y-v[1])**2) < 0.05
+
+        country = G[u][list(G[u])[0]]['iso3']
+        cost_ab = BCOST.loc[country]['border_fee_export']
         if port_is_near_road and port_is_near_sea_link:
             G.add_edge(u, v,
                 length=0,
                 quality='port_fee',
-                cost=PARAMS['port_wait_time'] if args.time else PARAMS['port_fee'])
+                cost=port_cost+cost_ab)
             G.add_edge(v, u,
                 length=0,
                 quality='port_fee',
-                cost=PARAMS['port_wait_time'] if args.time else PARAMS['port_fee'])
+                cost=port_cost+cost_ab)
     logger.info('Sea transfers created.')
     return G
 #---------------------------------------------------

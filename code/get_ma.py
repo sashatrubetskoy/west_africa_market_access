@@ -86,11 +86,18 @@ def calc_market_access(city_i, cost_matrix, cities, externals):
             if travel_cost_id < 0: # Skip city pairs where cost is set to -1, a dummy value
                 continue
 
-        logger.debug('        ', time.time())
-        FMA += cities.iloc[i]['GDP'] * (travel_cost_id + 1)**(-PARAMS['theta']) # Firm Market Access
-        logger.debug('FMA done', time.time())
-        CMA += cities.iloc[i]['GDP'] * (travel_cost_oi + 1)**(-PARAMS['theta']) # Consumer Market Access
-        logger.debug('CMA done', time.time())
+        if args.harris:
+            logger.debug('        ', time.time())
+            FMA += cities.iloc[i]['GDP'] / travel_cost_id # Firm Market Access
+            logger.debug('FMA done', time.time())
+            CMA += cities.iloc[i]['GDP'] / travel_cost_oi # Consumer Market Access
+            logger.debug('CMA done', time.time())
+        else:
+            logger.debug('        ', time.time())
+            FMA += cities.iloc[i]['GDP'] * (travel_cost_id + 1)**(-PARAMS['theta']) # Firm Market Access
+            logger.debug('FMA done', time.time())
+            CMA += cities.iloc[i]['GDP'] * (travel_cost_oi + 1)**(-PARAMS['theta']) # Consumer Market Access
+            logger.debug('CMA done', time.time())
 
     return max([FMA, 1e-99]), max([CMA, 1e-99]) # in case MA = 0, prevent division errors later
 
