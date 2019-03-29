@@ -1,7 +1,8 @@
 parameter,value
-shipment_value,50000
+shipment_usd_value,50000
+shipment_time_value,800
 switching_fee,25
 port_fee,200
-port_wait_time,20
-switching_time,1
-default_border_wait_time,20
+port_wait_time,100
+switching_time,5
+default_border_wait_time,90
